@@ -1,24 +1,7 @@
 import streamlit as st  # Main library for creating the Streamlit web app.
 import requests  # Library for making HTTP requests.
 import json  # Library for JSON manipulation.
-import boto3  # AWS SDK for Python, used for accessing AWS services like CloudWatch.
 import time  # Module for working with time-related functions.
-from datetime import datetime, timedelta  # Modules for handling date and time operations.
-
-
-aws_access_key_id = "AKIAVN57TFQOMY5BMVWG"
-aws_secret_access_key = "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"
-region_name = "eu-north-1"
-
-
-# Initialize the boto3 client for CloudWatch
-# This setup is for interacting with AWS CloudWatch service.
-cloudwatch = boto3.client(
-    'cloudwatch',
-    aws_access_key_id=aws_access_key_id,
-    aws_secret_access_key=aws_secret_access_key,
-    region_name=region_name
-)
 
 # Title of the Streamlit web app
 st.title('Weather and Currency Exchange App')
@@ -88,52 +71,7 @@ if st.button("Fetch Rate from AWS Lambda"):
         for currency, rate in rates.items():
             st.write(f"{base_currency_lambda} to {currency}: {rate}")
 
-        # Fetching and displaying AWS Lambda metrics
-        st.header('AWS Lambda Metrics')
-        end_time = datetime.utcnow()
-        start_time = end_time - timedelta(hours=24)
-
-        # Function to fetch specific Lambda metrics
-        def get_lambda_metric(metric_name, statistics):
-            return cloudwatch.get_metric_statistics(
-                Namespace='AWS/Lambda',
-                MetricName=metric_name,
-                Dimensions=[{'Name': 'FunctionName', 'Value': 'currencyandperformance'}],
-                StartTime=start_time,
-                EndTime=end_time,
-                Period=3600,
-                Statistics=statistics
-            )
-
-        # Fetching various metrics
-        invocations_metric = get_lambda_metric('Invocations', ['Sum'])
-        errors_metric = get_lambda_metric('Errors', ['Sum'])
-        throttles_metric = get_lambda_metric('Throttles', ['Sum'])
-
-        # Calculating success rate
-        total_invocations = sum(dp['Sum'] for dp in invocations_metric['Datapoints'])
-        total_errors = sum(dp['Sum'] for dp in errors_metric['Datapoints'])
-        success_rate = ((total_invocations - total_errors) / total_invocations) * 100 if total_invocations else 0
-
-        # Preparing metrics data for display
-        metrics_data = [
-            {'Metric': 'Invocations', 'Value': total_invocations},
-            {'Metric': 'Errors', 'Value': total_errors},
-            {'Metric': 'Success Rate (%)', 'Value': f"{success_rate:.2f}"},
-            {'Metric': 'Throttles', 'Value': sum(dp['Sum'] for dp in throttles_metric['Datapoints'])},
-        ]
-
-        # Displaying metrics in a table
-        st.table(metrics_data)
-        st.subheader("Metrics Legend")
-        st.write("""
-            - **Invocations:** Total number of times the Lambda function was invoked in the specified period.
-            - **Errors:** Total number of times the Lambda function execution resulted in an error.
-            - **Success Rate (%):** Percentage of successful invocations out of total invocations. Calculated as \((Total Invocations - Errors) / Total Invocations \times 100\).
-            - **Throttles:** Total number of invocation requests that were throttled due to reaching AWS Lambda limits.
-        """)
+        # Displaying the request duration
         st.write(f"Request duration: {request_duration:.2f} seconds")
     else:
         st.error("Error fetching data from AWS Lambda.")
-
-
